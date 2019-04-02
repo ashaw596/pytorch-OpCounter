@@ -7,7 +7,7 @@ from torch.nn.modules.conv import _ConvNd
 from .count_hooks import *
 
 register_hooks = {
-    # nn.Conv2d: count_conv2d,
+    nn.Conv2d: count_conv2d,
     _ConvNd: count_convNd,
 
     nn.BatchNorm1d: count_bn,
