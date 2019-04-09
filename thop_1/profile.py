@@ -36,12 +36,14 @@ register_hooks = {
 }
 
 
-def profile(model, input_size, custom_ops={}, device="cpu"):
+def profile(model, input_size, custom_ops={}, device="cpu", save_ops=True):
     handler_collection = []
     def add_hooks(m):
         if len(list(m.children())) > 0:
             return
 
+        assert not hasattr(m, 'total_ops')
+        assert not hasattr(m, 'total_params')
         m.register_buffer('total_ops', torch.zeros(1))
         m.register_buffer('total_params', torch.zeros(1))
 
@@ -80,6 +82,9 @@ def profile(model, input_size, custom_ops={}, device="cpu"):
             continue
         total_ops += m.total_ops
         total_params += m.total_params
+        if not save_ops:
+            del m.total_ops
+            del m.total_params
 
     total_ops = total_ops.item()
     total_params = total_params.item()
