@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 multiply_adds = 1
+adds_multiplier = 0
 
 
 def count_convNd(m, x, y):
@@ -13,6 +14,7 @@ def count_convNd(m, x, y):
 
     kernel_ops = m.weight.size()[2:].numel()
     bias_ops = 1 if m.bias is not None else 0
+    bias_ops *= adds_multiplier
     ops_per_element = kernel_ops + bias_ops
     output_elements = y.nelement()
 
@@ -37,6 +39,7 @@ def count_conv2d(m, x, y):
     # kernel_add = kh * kw * cin - 1
     kernel_ops = multiply_adds * kh * kw
     bias_ops = 1 if m.bias is not None else 0
+    bias_ops *= adds_multiplier
     ops_per_element = kernel_ops + bias_ops
 
     # total ops
@@ -48,6 +51,7 @@ def count_conv2d(m, x, y):
 
 
 def count_convtranspose2d(m, x, y):
+    raise NotImplementedError
     x = x[0]
 
     cin = m.in_channels
@@ -61,34 +65,37 @@ def count_convtranspose2d(m, x, y):
     # ops per output element
     # kernel_mul = kh * kw * cin
     # kernel_add = kh * kw * cin - 1
-    kernel_ops = multiply_adds * kh * kw * cin // m.groups
-    bias_ops = 1 if m.bias is not None else 0
-    ops_per_element = kernel_ops + bias_ops
+    # kernel_ops = multiply_adds * kh * kw * cin // m.groups
+    # bias_ops = 1 if m.bias is not None else 0
+    # ops_per_element = kernel_ops + bias_ops
 
     # total ops
     # num_out_elements = y.numel()
     # output_elements = batch_size * out_w * out_h * cout
     ops_per_element = m.weight.nelement()
     output_elements = y.nelement()
+    # ops_per_element *= adds_multiplier
     total_ops = output_elements * ops_per_element
 
     m.total_ops = torch.Tensor([int(total_ops)])
 
 
 def count_bn(m, x, y):
+
     x = x[0]
 
     nelements = x.numel()
     # subtract, divide, gamma, beta
-    total_ops = 4 * nelements
+    total_ops = 4 * nelements * 0
 
     m.total_ops = torch.Tensor([int(total_ops)])
+
 
 
 def count_relu(m, x, y):
     x = x[0]
 
-    nelements = x.numel()
+    nelements = x.numel() * adds_multiplier
     total_ops = nelements
 
     m.total_ops = torch.Tensor([int(total_ops)])
@@ -150,6 +157,7 @@ def count_linear(m, x, y):
     total_mul = m.in_features
     total_add = m.in_features - 1
     num_elements = y.numel()
+    total_add *= adds_multiplier
     total_ops = (total_mul + total_add) * num_elements
 
     m.total_ops = torch.Tensor([int(total_ops)])
